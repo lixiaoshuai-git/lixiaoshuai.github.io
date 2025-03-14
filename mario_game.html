@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>马里奥小游戏</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #87CEEB;
+        }
+
+       .game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
+       .ground {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 50px;
+            background-color: #228B22;
+        }
+
+       .mario {
+            position: absolute;
+            bottom: 50px;
+            left: 50px;
+            width: 50px;
+            height: 50px;
+            background: url('https://dummyimage.com/50x50/FF0000/000000&text=Mario') no-repeat;
+        }
+
+       .obstacle {
+            position: absolute;
+            bottom: 50px;
+            width: 30px;
+            height: 30px;
+            background-color: #000;
+        }
+
+       .monster {
+            position: absolute;
+            bottom: 50px;
+            width: 40px;
+            height: 40px;
+            background: url('https://dummyimage.com/40x40/FFA500/000000&text=Monster') no-repeat;
+        }
+
+       .cloud {
+            position: absolute;
+            width: 120px;
+            height: 80px;
+            background: url('https://dummyimage.com/120x80/FFFFFF/000000&text=Cloud&pattern=noise') no-repeat;
+        }
+
+       .game-over-message {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 50px;
+            color: red;
+            z-index: 10;
+        }
+
+       .restart-button {
+            display: none;
+            position: absolute;
+            top: 60%;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 20px;
+            font-size: 20px;
+            cursor: pointer;
+            z-index: 10;
+        }
+
+       .pause-button {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            padding: 5px 10px;
+            font-size: 16px;
+            cursor: pointer;
+            z-index: 10;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="game-container">
+        <div class="ground"></div>
+        <div class="mario" id="mario"></div>
+        <div class="game-over-message" id="game-over-message">Game Over</div>
+        <button class="restart-button" id="restart-button" onclick="restartGame()">重新开始</button>
+        <button class="pause-button" id="pause-button" onclick="togglePause()">暂停</button>
+    </div>
+    <script>
+        const mario = document.getElementById('mario');
+        const gameOverMessage = document.getElementById('game-over-message');
+        const restartButton = document.getElementById('restart-button');
+        const pauseButton = document.getElementById('pause-button');
+        let marioX = 50;
+        let marioY = 50;
+        let isJumping = false;
+        let jumpHeight = 150;
+        let jumpSpeed = 5;
+        let moveSpeed = 5;
+        const gameContainer = document.querySelector('.game-container');
+        let obstacles = [];
+        let monsters = [];
+        let clouds = [];
+        let gameOver = false;
+        let leftKeyPressed = false;
+        let rightKeyPressed = false;
+        let isPaused = false;
+
+        function createObstacle() {
+            if (isPaused) return;
+            const obstacle = document.createElement('div');
+            obstacle.classList.add('obstacle');
+            obstacle.style.left = window.innerWidth + 'px';
+            gameContainer.appendChild(obstacle);
+            obstacles.push(obstacle);
+        }
+
+        function createMonster() {
+            if (isPaused) return;
+            const monster = document.createElement('div');
+            monster.classList.add('monster');
+            monster.style.left = window.innerWidth + 'px';
+            gameContainer.appendChild(monster);
+            monsters.push(monster);
+        }
+
+        function createCloud() {
+            if (isPaused) return;
+            const cloud = document.createElement('div');
+            cloud.classList.add('cloud');
+            cloud.style.left = window.innerWidth + 'px';
+            cloud.style.top = Math.random() * (window.innerHeight - 200) + 'px';
+            gameContainer.appendChild(cloud);
+            clouds.push(cloud);
+        }
+
+        setInterval(createObstacle, 2000);
+        setInterval(createMonster, 3000);
+        setInterval(createCloud, 5000);
+
+        function moveObstacles() {
+            if (isPaused) return;
+            for (let i = 0; i < obstacles.length; i++) {
+                const obstacle = obstacles[i];
+                const obstacleX = parseInt(obstacle.style.left);
+                obstacle.style.left = obstacleX - moveSpeed + 'px';
+                if (isCollision(mario, obstacle)) {
+                    endGame();
+                }
+                if (obstacleX < -30) {
+                    obstacle.remove();
+                    obstacles.splice(i, 1);
+                    i--;
+                }
+            }
+        }
+
+        function moveMonsters() {
+            if (isPaused) return;
+            for (let i = 0; i < monsters.length; i++) {
+                const monster = monsters[i];
+                const monsterX = parseInt(monster.style.left);
+                monster.style.left = monsterX - moveSpeed + 'px';
+                if (isCollision(mario, monster)) {
+                    endGame();
+                }
+                if (monsterX < -40) {
+                    monster.remove();
+                    monsters.splice(i, 1);
+                    i--;
+                }
+            }
+        }
+
+        function moveClouds() {
+            if (isPaused) return;
+            for (let i = 0; i < clouds.length; i++) {
+                const cloud = clouds[i];
+                const cloudX = parseInt(cloud.style.left);
+                cloud.style.left = cloudX - 1 + 'px';
+                if (cloudX < -120) {
+                    cloud.remove();
+                    clouds.splice(i, 1);
+                    i--;
+                }
+            }
+        }
+
+        function isCollision(element1, element2) {
+            const rect1 = element1.getBoundingClientRect();
+            const rect2 = element2.getBoundingClientRect();
+            return (
+                rect1.left < rect2.right &&
+                rect1.right > rect2.left &&
+                rect1.top < rect2.bottom &&
+                rect1.bottom > rect2.top
+            );
+        }
+
+        function endGame() {
+            gameOver = true;
+            gameOverMessage.style.display = 'block';
+            restartButton.style.display = 'block';
+        }
+
+        function restartGame() {
+            gameOver = false;
+            gameOverMessage.style.display = 'none';
+            restartButton.style.display = 'none';
+            marioX = 50;
+            marioY = 50;
+            mario.style.left = marioX + 'px';
+            mario.style.bottom = marioY + 'px';
+            obstacles.forEach(obstacle => obstacle.remove());
+            obstacles = [];
+            monsters.forEach(monster => monster.remove());
+            monsters = [];
+            clouds.forEach(cloud => cloud.remove());
+            clouds = [];
+        }
+
+        function togglePause() {
+            isPaused = !isPaused;
+            pauseButton.textContent = isPaused ? '继续' : '暂停';
+        }
+
+        setInterval(moveObstacles, 20);
+        setInterval(moveMonsters, 20);
+        setInterval(moveClouds, 20);
+
+        document.addEventListener('keydown', function (event) {
+            if (!gameOver && !isPaused) {
+                if (event.key === 'ArrowLeft') {
+                    leftKeyPressed = true;
+                } else if (event.key === 'ArrowRight') {
+                    rightKeyPressed = true;
+                } else if (event.key === 'ArrowUp' && !isJumping) {
+                    isJumping = true;
+                    let jumpInterval = setInterval(() => {
+                        if (marioY > 50 + jumpHeight) {
+                            clearInterval(jumpInterval);
+                            let fallInterval = setInterval(() => {
+                                if (marioY > 50) {
+                                    marioY -= jumpSpeed;
+                                    mario.style.bottom = marioY + 'px';
+                                } else {
+                                    clearInterval(fallInterval);
+                                    isJumping = false;
+                                }
+                            }, 10);
+                        }
+                        marioY += jumpSpeed;
+                        mario.style.bottom = marioY + 'px';
+                    }, 10);
+                } else if (event.key === 'ArrowDown' && marioY > 50) {
+                    marioY -= moveSpeed;
+                    mario.style.bottom = marioY + 'px';
+                }
+            }
+        });
+
+        document.addEventListener('keyup', function (event) {
+            if (event.key === 'ArrowLeft') {
+                leftKeyPressed = false;
+            } else if (event.key === 'ArrowRight') {
+                rightKeyPressed = false;
+            }
+        });
+
+        setInterval(() => {
+            if (!gameOver && !isPaused) {
+                if (leftKeyPressed && marioX > 0) {
+                    marioX -= moveSpeed;
+                } else if (rightKeyPressed && marioX < window.innerWidth - 50) {
+                    marioX += moveSpeed;
+                }
+                mario.style.left = marioX + 'px';
+            }
+        }, 20);
+    </script>
+</body>
+
+</html>    
